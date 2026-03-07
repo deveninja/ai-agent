@@ -1,0 +1,59 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+
+# SQLite databases
+*.sqlite3
+*.db
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Coverage reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Testing
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Uvicorn runtime files
+*.pid
+*.sock
