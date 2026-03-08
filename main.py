@@ -13,6 +13,9 @@ def root():
 @app.post("/tool")
 def run_tool(request: ToolRequest):
 
+  print(f"Tool called: {request.tool_name}")
+  print(f"Parameters: {request.parameters}")
+
   tool_function = tool_registry.get(request.tool_name)
 
   if not tool_function:

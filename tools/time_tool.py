@@ -1,11 +1,31 @@
-from datetime import datetime
+import requests
+import os
+from dotenv import load_dotenv
 
-def get_time(city: str):
-  """
-  Returns the current time.
-  """
+load_dotenv()
+
+def get_time(timezone: str):
+  # """
+  # Returns the current time.
+  # """
+
+  # return {
+  #   "city": city,
+  #   "time": datetime.now().strftime("%H:%M:%S")
+  # }
+
+  print(f"Getting time for timezone: {timezone}")
+  r = requests.get(
+    "http://api.timezonedb.com/v2.1/get-time-zone",
+    params={
+      "key": os.getenv("TIMEZONEDB_API_KEY"),
+      "format": "json",
+      "by": "zone",
+      "zone": timezone
+    }
+  ).json()
 
   return {
-    "city": city,
-    "time": datetime.now().strftime("%H:%M:%S")
+      "time": r["formatted"],
+      "timezone": r["zoneName"]
   }

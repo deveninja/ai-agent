@@ -1,29 +1,42 @@
 [
   {
-    "name": "get_weather",
-    "description": "Get the weather for a city",
+    "name": "geocode_location",
+    "description": "Convert a city or location name into latitude, longitude and timezone",
     "parameters": {
       "type": "object",
       "properties": {
-        "city": {
+        "location": {
           "type": "string",
-          "description": "City name"
+          "description": "City or location name"
         }
       },
-      "required": ["city"]
+      "required": ["location"]
+    }
+  },
+  {
+    "name": "get_weather",
+    "description": "Get current weather from latitude and longitude",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
+      },
+      "required": ["latitude", "longitude"]
     }
   },
   {
     "name": "get_time",
-    "description": "Get the current time for a city",
+    "description": "Get current time using timezone returned from geocode_location",
     "parameters": {
       "type": "object",
       "properties": {
-        "city": {
-          "type": "string"
+        "timezone": {
+          "type": "string",
+          "description": "Timezone like Asia/Manila"
         }
       },
-      "required": ["city"]
+      "required": ["timezone"]
     }
   }
 ]
