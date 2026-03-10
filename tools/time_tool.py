@@ -1,10 +1,26 @@
+"""
+time_tool.py
+
+Retrieves the current local time for a given IANA timezone string
+by calling the TimeZoneDB REST API.
+"""
+
 import requests
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def get_time(timezone: str):
+  """
+  Fetch the current time for an IANA timezone via the TimeZoneDB API.
+
+  Args:
+    timezone (str): A valid IANA timezone identifier
+                    (e.g. "Asia/Manila", "America/New_York").
+
+  Returns:
+    dict: A dictionary with the following keys:
+      - "time"     (str): Formatted datetime string returned by the API.
+      - "timezone" (str): The confirmed IANA timezone name.
+  """
   # """
   # Returns the current time.
   # """

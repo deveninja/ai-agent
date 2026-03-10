@@ -1,6 +1,9 @@
 fastapi
 uvicorn
-openai
 python-dotenv
 requests
 streamlit
+mariadb
+ollama
+chromadb
+sentence-transformers

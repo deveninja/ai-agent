@@ -1,7 +1,8 @@
 import streamlit as st
 from agent import ask_agent
 
-st.title("🧟 Under developed AI Agent")
+st.title("🧟 Hi I'm Tata Lino")
+st.subheader("Your not so smart AI Agent")
 
 if "messages" not in st.session_state:
   st.session_state.messages = []
@@ -65,6 +66,25 @@ for role, msg in st.session_state.messages:
       html += "</div>"
 
       st.html(render_card("Weather Forecast", html))
+
+    elif isinstance(msg, dict) and "email" in msg:
+      if msg["name"]:
+        html = f"""
+        <div style="
+          padding:15px;
+          border-radius:10px;
+          background-color:var(--secondary-background-color);
+          color:var(--text-color);
+          font-size:18px;
+        ">
+          👤 <b>{msg['name']}</b><br>
+          📧 {msg['email']}<br>
+          🏢 {msg['department']}
+        </div>
+        """
+        st.html(render_card("User Information", html))
+      else:
+        st.write("User not found.")
 
     else:
         st.write(msg)

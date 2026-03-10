@@ -24,3 +24,17 @@ def run_tool(request: ToolRequest):
   result = tool_function(**request.parameters)
 
   return {"result": result}
+
+@app.get("/tools")
+def list_tools():
+
+  tools = []
+
+  for name, func in tool_registry.items():
+
+    tools.append({
+      "name": name,
+      "description": func.__doc__
+    })
+
+  return {"tools": tools}

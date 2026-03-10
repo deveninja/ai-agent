@@ -1,144 +1,417 @@
+"""
+AI MCP Agent
+
+Core responsibilities:
+
+1. Understand user queries
+2. Route simple queries directly to tools
+3. Use Ollama for reasoning when needed
+4. Maintain short-term conversational memory
+5. Execute external tools through a tool server
+"""
+
 import json
 import requests
-import os
-from router import allow_request
+import ollama
 
-from dotenv import load_dotenv
-from openai import OpenAI
+from tools.nlp_parser import parse_query
+from router import route_tool
+from tools.knowledge_search import search_knowledge
+from tools.memory import save_memory, search_memory
 
-from offline_agent import decide_tool
+# ---------------------------------------------------------
+# GLOBAL CONFIGURATION
+# ---------------------------------------------------------
 
-load_dotenv()
+CONVERSATION = []
 
-USE_OFFLINE = False
+AGENT_MEMORY = {
+    "last_city": None
+}
 
-try:
-  client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-except:
-  USE_OFFLINE = True
+MAX_HISTORY = 12
+MAX_TOOL_STEPS = 5
 
+
+# ---------------------------------------------------------
+# LOAD TOOL DEFINITIONS
+# ---------------------------------------------------------
 
 with open("config/tools.json") as f:
-  tools = json.load(f)
+    tools = json.load(f)
 
+
+# ---------------------------------------------------------
+# TOOL EXECUTION
+# ---------------------------------------------------------
 
 def call_tool(tool_name, arguments):
 
-  result = requests.post(
-    "http://127.0.0.1:8000/tool",
-    json={
-      "tool_name": tool_name,
-      "parameters": arguments
-    }
-  )
+    result = requests.post(
+        "http://127.0.0.1:8000/tool",
+        json={
+            "tool_name": tool_name,
+            "parameters": arguments
+        }
+    )
 
-  if result.status_code != 200:
-    return f"Tool server error: {result.status_code}"
+    if result.status_code != 200:
+        return f"Tool server error: {result.status_code}"
 
-  try:
-    data = result.json()
-    return data["result"]
-  except Exception:
-    return f"Invalid response from tool server: {result.text}"
+    try:
+        data = result.json()
+        return data["result"]
+    except Exception:
+        return f"Invalid response from tool server: {result.text}"
 
+
+# ---------------------------------------------------------
+# FAST TOOL ROUTER
+# ---------------------------------------------------------
+
+def run_router_tools(intent, parsed):
+
+    if intent == "weather":
+
+        location = parsed.get("city") or AGENT_MEMORY["last_city"]
+
+        if not location:
+          return "Please specify a city."
+
+        geo = call_tool("geocode_location", {"location": location})
+
+        if isinstance(geo, str):
+            return geo
+
+        weather = call_tool(
+            "get_weather",
+            {
+                "latitude": geo["latitude"],
+                "longitude": geo["longitude"]
+            }
+        )
+
+        return weather
+
+
+    elif intent == "time":
+
+        location = parsed.get("city") or AGENT_MEMORY["last_city"]
+
+        if not location:
+          return "I don't know which city you mean. Please specify a location."
+
+        geo = call_tool("geocode_location", {"location": location})
+
+        if isinstance(geo, str):
+            return geo
+
+        time_data = call_tool(
+            "get_time",
+            {
+                "timezone": geo["timezone"]
+            }
+        )
+
+        return time_data
+
+
+    elif intent == "user":
+
+        name = parsed.get("name")
+
+        user_data = call_tool(
+            "get_user",
+            {
+                "name": name
+            }
+        )
+
+        return user_data
+  
+    elif intent == "knowledge":
+
+        query = parsed.get("query")
+
+        knowledge_data = search_knowledge(query)
+
+        return knowledge_data
+    
+    elif intent == "unknown":
+      return None
+
+    return None
+
+
+# ---------------------------------------------------------
+# MAIN AGENT
+# ---------------------------------------------------------
 
 def ask_agent(question):
 
-  global USE_OFFLINE
+    global CONVERSATION
 
-  # ROUTER CHECK
-  if not allow_request(question):
-    return "This agent only supports questions related to its tools."
+    # -----------------------------------------------------
+    # STEP 1: PARSE QUERY
+    # -----------------------------------------------------
 
-  if not USE_OFFLINE:
+    parsed = parse_query(question)
 
-    try:
+    print("Parsed query:", parsed)
 
-      messages = [{"role": "user", "content": question}]
+    context_words = [
+      "there",
+      "that city",
+      "same place",
+      "over there",
+      "that place",
+      "in that city",
+      "in the same place"
+    ]
 
-      while True:
+    if not parsed.get("city"):
+      q_lower = question.lower()
 
-        response = client.chat.completions.create(
-          model="gpt-4o-mini",
-          messages=messages,
-          tools=[{"type": "function", "function": tool} for tool in tools],
+      if any(word in q_lower for word in context_words) and AGENT_MEMORY["last_city"]:
+        parsed["city"] = AGENT_MEMORY["last_city"]
+
+    if parsed.get("city"):
+        AGENT_MEMORY["last_city"] = parsed["city"]
+
+    intent = parsed.get("intent")
+
+
+    # -----------------------------------------------------
+    # STEP 2: FAST ROUTER
+    # -----------------------------------------------------
+
+    router_result = run_router_tools(intent, parsed)
+
+    if router_result is not None:
+        return router_result
+
+
+    # -----------------------------------------------------
+    # STEP 3: INIT CONVERSATION
+    # -----------------------------------------------------
+
+    if not CONVERSATION:
+        CONVERSATION.append({
+            "role": "system",
+            "content": """
+              You are an AI assistant that can use tools.
+
+              If tool results are provided, use them to answer the user naturally.
+              Do not output raw JSON unless asked.
+            """
+        })
+
+
+    CONVERSATION.append({
+        "role": "user",
+        "content": question
+    })
+
+
+    # -----------------------------------------------------
+    # STEP 4: TRIM HISTORY
+    # -----------------------------------------------------
+
+    if len(CONVERSATION) > MAX_HISTORY:
+        del CONVERSATION[1:-MAX_HISTORY]
+
+
+    # -----------------------------------------------------
+    # STEP 5: MEMORY CONTEXT
+    # -----------------------------------------------------
+
+    memory = search_memory(question)
+
+    print("MEMORY RESULT:", memory)
+
+    memory_text = "\n".join(memory)
+
+    memory_message = {
+        "role": "system",
+        "content": f"""
+          Agent memory:
+
+          Last known city: {AGENT_MEMORY["last_city"]}
+
+          Relevant past conversation:
+          {memory_text}
+        """
+    }
+
+    # -------------------------------------
+    # BUILD MESSAGE CONTEXT
+    # -------------------------------------
+
+    messages = [CONVERSATION[0]] + [memory_message] + CONVERSATION[1:]
+
+
+
+    # -----------------------------------------------------
+    # STEP 5.5: KNOWLEDGE SEARCH (RAG)
+    # -----------------------------------------------------
+
+    knowledge = search_knowledge(question)
+
+    print("KNOWLEDGE RESULT:", knowledge)
+
+    if knowledge:
+
+        context = "\n\n".join(knowledge)
+
+        response = ollama.chat(
+            model="llama3.2",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant that answers questions using provided knowledge."
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                      Use the knowledge below to answer the question.
+
+                      Knowledge:
+                      {context}
+
+                      Question:
+                      {question}
+
+                      Answer clearly and concisely.
+                    """
+                }
+            ]
         )
 
-        message = response.choices[0].message
+        # SAFELY read response
+        message = response.get("message", {})
+        answer = message.get("content")
 
-        # If AI wants to call a tool
-        if message.tool_calls:
+        # fallback protection
+        if not answer or answer.strip() == "":
+            answer = f"""
+              Based on the available knowledge:
 
-          tool_call = message.tool_calls[0]
+              {context}
+            """
 
-          tool_name = tool_call.function.name
-          arguments = json.loads(tool_call.function.arguments)
+        # save to conversation memory
+        CONVERSATION.append({
+            "role": "assistant",
+            "content": answer
+        })
 
-          print("AI selected tool:", tool_name)
+        save_memory(f"User: {question}")
+        save_memory(f"Assistant: {answer}")
 
-          result = call_tool(tool_name, arguments)
-
-          # add tool call to conversation
-          messages.append(message)
-
-          messages.append({
-            "role": "tool",
-            "tool_call_id": tool_call.id,
-            "content": json.dumps(result)
-          })
-
-        else:
-          return message.content
-
-    except Exception as e:
-      print("⚠️ OpenAI failed, switching to offline mode")
-      USE_OFFLINE = True
+        return answer
 
 
-  # Offline fallback
-  decision = decide_tool(question)
+    # -----------------------------------------------------
+    # STEP 6: LLM TOOL LOOP
+    # -----------------------------------------------------
 
-  if decision:
-
-    print("Offline AI selected tool:", decision["tool_name"])
-
-    location_result = call_tool(
-      decision["tool_name"],
-      decision["parameters"]
-    )
-
-    if not isinstance(location_result, dict):
-      return f"Tool error: {location_result}"
-
-    # chain next tool
-    if decision["next_tool"] == "get_weather":
-
-      return call_tool(
-        "get_weather",
+    ollama_tools = [
         {
-          "latitude": location_result["latitude"],
-          "longitude": location_result["longitude"]
+            "type": "function",
+            "function": tool
         }
-      )
+        for tool in tools
+    ]
 
-    if decision["next_tool"] == "get_time":
 
-      return call_tool(
-        "get_time",
-        {
-          "timezone": location_result["timezone"]
-        }
-      )
+    last_tool_call = None
 
-  return "Offline AI could not determine the tool."
+    for step in range(MAX_TOOL_STEPS):
 
+        response = ollama.chat(
+            model="llama3.2",
+            messages=messages,
+            tools=ollama_tools
+        )
+
+        message = response["message"]
+
+        print("AI response:", message)
+
+        # -----------------------------
+        # TOOL REQUEST
+        # -----------------------------
+        if "tool_calls" in message:
+
+            tool_call = message["tool_calls"][0]
+
+            tool_name = tool_call["function"]["name"]
+            arguments = tool_call["function"]["arguments"]
+
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+
+            tool_signature = f"{tool_name}:{arguments}"
+
+            # STOP if tool repeats
+            if tool_signature == last_tool_call:
+                print("⚠️ Duplicate tool call detected. Stopping.")
+                return "⚠️ Tool loop detected."
+
+            last_tool_call = tool_signature
+
+            print("AI selected tool:", tool_name)
+
+            result = call_tool(tool_name, arguments)
+
+            # Safety check — prevents infinite loops if tool returns empty data
+            if not result:
+                print("⚠️ Tool returned no data.")
+                return "⚠️ Tool returned no data."
+            
+            # Save city in memory when geocode tool runs
+            if tool_name == "geocode_location" and "location" in arguments:
+                AGENT_MEMORY["last_city"] = arguments["location"]
+
+            tool_message = {
+                "role": "tool",
+                "tool_name": tool_name,
+                "content": json.dumps(result)
+            }
+
+            CONVERSATION.append(message)
+            CONVERSATION.append(tool_message)
+
+            # rebuild messages instead of mutating it
+            messages = [CONVERSATION[0]] + [memory_message] + CONVERSATION[1:]
+
+            continue
+
+        # -----------------------------
+        # FINAL ANSWER
+        # -----------------------------
+        CONVERSATION.append(message)
+
+        answer = message["content"]
+
+        save_memory(f"User: {question}")
+        save_memory(f"Assistant: {answer}")
+
+        return answer
+
+    return "⚠️ Tool loop exceeded."
+
+
+# ---------------------------------------------------------
+# CLI TEST MODE
+# ---------------------------------------------------------
 
 if __name__ == "__main__":
 
-  while True:
+    while True:
 
-    question = input("\nAsk something: ")
+        question = input("\nAsk something: ")
 
-    result = ask_agent(question)
+        result = ask_agent(question)
 
-    print("Result:", result)
+        print("Result:", result)

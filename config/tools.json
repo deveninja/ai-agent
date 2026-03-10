@@ -38,5 +38,32 @@
       },
       "required": ["timezone"]
     }
+  },
+  {
+    "name": "get_user",
+    "description": "Find or lookup company user, employee, or person by name. Questions like who is John Doe.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the user"
+        }
+      },
+      "required": ["name"]
+    }
+  },
+  {
+    "name": "search_knowledge",
+    "description": "Search internal company knowledge base",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": ["query"]
+    }
   }
 ]

@@ -1,17 +1,32 @@
+"""
+weather.py
+
+Fetches a multi-day weather forecast for a geographic location using
+the Open-Meteo free forecast API (no API key required).
+"""
+
 import requests
 
 def get_weather(latitude, longitude):
-  # """
-  # Demo weather tool.
-  # In production this would call a real API.
-  # """
+  """
+  Retrieve a 5-day weather forecast for the given coordinates.
 
-  # return {
-  #   "city": city,
-  #   "temperature": "30°C",
-  #   "condition": "Sunny"
-  # }
+  Calls the Open-Meteo /v1/forecast endpoint and returns daily
+  maximum/minimum temperatures (°C) and precipitation probability
+  for the next 5 days.
 
+  Args:
+    latitude  (float): Geographic latitude of the target location.
+    longitude (float): Geographic longitude of the target location.
+
+  Returns:
+    list[dict]: A list of up to 5 daily forecast dictionaries, each
+    containing:
+      - "date"        (str):   ISO date string (YYYY-MM-DD).
+      - "temp_max"    (float): Maximum temperature in °C.
+      - "temp_min"    (float): Minimum temperature in °C.
+      - "rain_chance" (int):   Precipitation probability (0–100 %).
+  """
   url = (
     "https://api.open-meteo.com/v1/forecast"
     f"?latitude={latitude}"
