@@ -110,7 +110,20 @@ ai-mcp-agent-demo/
 pip install -r requirements.txt
 ```
 
-### 2. Configure environment variables
+### 2. Install Ollama and pull the model (required for local LLM)
+
+Install **Ollama** on your machine.
+
+- **Windows:** download and run the Ollama Windows installer from the official site.
+- **macOS/Linux:** install Ollama using the platform instructions on the official site.
+
+Then pull the model used by this project:
+
+```bash
+ollama pull llama3.2
+```
+
+### 3. Configure environment variables
 
 Create a `.env` file in the project root:
 
@@ -118,19 +131,19 @@ Create a `.env` file in the project root:
 TIMEZONEDB_API_KEY=your_timezonedb_key
 ```
 
-### 3. Build the knowledge base
+### 4. Build the knowledge base
 
 ```bash
 py build_knowledge.py
 ```
 
-### 4. Start the MCP tool server
+### 5. Start the MCP tool server
 
 ```bash
 uvicorn main:app --reload
 ```
 
-### 5. Run the Streamlit UI
+### 6. Run the Streamlit UI
 
 ```bash
 streamlit run app.py
