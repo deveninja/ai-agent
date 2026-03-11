@@ -1,5 +1,7 @@
 # AI MCP Agent Demo
 
+## Meet Tata Lino 🧟, a no so smart AI Agent
+
 A locally-running AI agent built with **Python** that understands natural-language queries, routes them to the right tools, and responds intelligently — all without relying on a paid API.  
 The agent uses **Ollama (llama3.2)** for reasoning, **ChromaDB** for vector memory and knowledge search, and exposes tools through a **FastAPI MCP tool server**.
 
