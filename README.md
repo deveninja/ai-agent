@@ -114,8 +114,9 @@ pip install -r requirements.txt
 
 Install **Ollama** on your machine.
 
-- **Windows:** download and run the Ollama Windows installer from the official site.
-- **macOS/Linux:** install Ollama using the platform instructions on the official site.
+- Download: https://ollama.com/download
+- **Windows:** download and run the Ollama Windows installer.
+- **macOS/Linux:** install Ollama using the platform instructions on the download page.
 
 Then pull the model used by this project:
 
