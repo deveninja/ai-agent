@@ -27,8 +27,6 @@ def get_user(name):
 
   conn = db_factory("mariadb")
 
-  cursor = conn.cursor()
-
   query = """
   SELECT name, email, role
   FROM users
@@ -36,12 +34,21 @@ def get_user(name):
   LIMIT 1
   """
 
-  cursor.execute(query, (f"%{name}%",))
-
-  row = cursor.fetchone()
-
-  cursor.close()
-  conn.close()
+  try:
+    cursor = conn.cursor()
+    cursor.execute(query, (f"%{name}%",))
+    row = cursor.fetchone()
+    cursor.close()
+  except Exception as e:
+    conn.close()
+    return {
+      "name": None,
+      "email": None,
+      "department": None,
+      "error": str(e)
+    }
+  finally:
+    conn.close()
 
   if not row:
     return {
