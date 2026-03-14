@@ -25,6 +25,7 @@ dist/
 # SQLite databases
 *.sqlite3
 *.db
+vector_db/
 
 # VS Code
 .vscode/
