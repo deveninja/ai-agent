@@ -1,8 +1,28 @@
 import streamlit as st
 from agent import ask_agent
+from knowledge_ingest import index_uploaded_file
 
 st.title("🧟 Hi I'm Tata Lino")
 st.subheader("Your not so smart AI Agent")
+
+st.markdown("### Add Documents to Knowledge Base")
+uploaded_file = st.file_uploader(
+  "Upload a PDF or CSV file",
+  type=["pdf", "csv"],
+  help="The file will be chunked, embedded, and added to the vector database."
+)
+
+if st.button("Index Uploaded File", disabled=uploaded_file is None):
+  with st.spinner("Reading file and indexing to vector database..."):
+    try:
+      result = index_uploaded_file(uploaded_file)
+      st.success(
+        f"Indexed {result['chunks_indexed']} chunks from {result['file_name']}"
+      )
+    except Exception as error:
+      st.error(f"Indexing failed: {error}")
+
+st.divider()
 
 if "messages" not in st.session_state:
   st.session_state.messages = []

@@ -7,3 +7,4 @@ mariadb
 ollama
 chromadb
 sentence-transformers
+pypdf
